@@ -200,6 +200,67 @@ def cmd_hook_test(args):
         console.print(f"  {os.path.relpath(fpath, project_dir)}")
 
 
+def cmd_hook_logs(args):
+    """View interaction logs from the GOG hook."""
+    project_dir = os.path.abspath(args.project_dir or os.getcwd())
+    log_path = os.path.join(project_dir, DATA_DIR_NAME, "interactions.jsonl")
+
+    if not os.path.exists(log_path):
+        console.print("[yellow]No interactions logged yet.[/]")
+        return
+
+    with open(log_path, "r", encoding="utf-8") as f:
+        lines = f.readlines()
+
+    if not lines:
+        console.print("[yellow]No interactions logged yet.[/]")
+        return
+
+    # Show last N entries
+    limit = args.last
+    entries = []
+    for line in lines:
+        line = line.strip()
+        if line:
+            try:
+                entries.append(json.loads(line))
+            except json.JSONDecodeError:
+                pass
+
+    if not entries:
+        console.print("[yellow]No valid log entries found.[/]")
+        return
+
+    shown = entries[-limit:]
+    console.print(f"[bold]Showing {len(shown)}/{len(entries)} interactions[/]\n")
+
+    for entry in shown:
+        ts = entry.get("timestamp", "?")
+        prompt = entry.get("prompt", "?")
+        result = entry.get("result", "?")
+        isolated = entry.get("files_isolated", 0)
+        total = entry.get("files_total", 0)
+        files = entry.get("files", [])
+        session = entry.get("session_id")
+
+        # Truncate long prompts for display
+        prompt_display = prompt if len(prompt) <= 80 else prompt[:77] + "..."
+
+        if result == "context_provided":
+            console.print(f"[dim]{ts}[/]  [green]{isolated}/{total}[/]  {prompt_display}")
+            for f in files:
+                console.print(f"  [dim]{f}[/]")
+        elif result == "no_seeds_matched":
+            console.print(f"[dim]{ts}[/]  [yellow]no match[/]  {prompt_display}")
+        elif result == "no_files":
+            console.print(f"[dim]{ts}[/]  [red]no files[/]  {prompt_display}")
+        console.print()
+
+    if args.clear:
+        os.remove(log_path)
+        console.print("[dim]Log cleared.[/]")
+
+
 def main():
     parser = argparse.ArgumentParser(
         prog="gog",
@@ -228,6 +289,12 @@ def main():
     p_test.add_argument("--project-dir", default=None, help="Project directory (default: cwd)")
     p_test.add_argument("query", nargs="+", help="Natural language query to test")
 
+    # gog hook logs [project_dir]
+    p_logs = hook_sub.add_parser("logs", help="View hook interaction logs")
+    p_logs.add_argument("project_dir", nargs="?", default=None, help="Project directory (default: cwd)")
+    p_logs.add_argument("--last", type=int, default=20, help="Number of recent entries to show (default: 20)")
+    p_logs.add_argument("--clear", action="store_true", help="Clear the log after displaying")
+
     args = parser.parse_args()
 
     if args.command == "build":
@@ -239,6 +306,8 @@ def main():
             cmd_hook_run(args)
         elif args.hook_command == "test":
             cmd_hook_test(args)
+        elif args.hook_command == "logs":
+            cmd_hook_logs(args)
         else:
             p_hook.print_help()
     else:
