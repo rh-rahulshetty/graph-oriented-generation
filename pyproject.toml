@@ -1,0 +1,23 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "gog"
+version = "0.1.0"
+description = "Graph-Oriented Generation — deterministic graph traversal for LLM code context"
+requires-python = ">=3.10"
+dependencies = [
+    "networkx",
+    "numpy<2",
+    "tree-sitter",
+    "tree-sitter-typescript",
+    "sentence-transformers",
+    "rich",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["srm_engine"]
+
+[project.scripts]
+gog = "srm_engine.cli:main"

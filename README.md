@@ -138,6 +138,75 @@ The 0.5B model's failures on Tiers 1 and 2 were not language failures — Tier 3
 
 ## Getting Started
 
+### Install as a CLI tool
+
+Requires [uv](https://docs.astral.sh/uv/getting-started/installation/).
+
+```bash
+# Install from the repository
+uv tool install .
+
+# Or run without installing
+uv run gog --help
+```
+
+This gives you the `gog` command with three capabilities: building dependency graphs, hooking into Claude Code, and testing queries.
+
+### CLI Usage
+
+#### 1. Build a dependency graph
+
+Parse a project's import structure and pre-compute embeddings:
+
+```bash
+gog build /path/to/your/ts-project
+```
+
+This creates a `.gog/` directory inside the target project containing `graph.pkl` and `embeddings.pkl`. Re-run after adding, removing, or renaming files.
+
+#### 2. Hook into Claude Code
+
+Install a `UserPromptSubmit` hook so Claude Code automatically receives GOG context on every prompt:
+
+```bash
+gog hook install /path/to/your/ts-project
+```
+
+This writes to the project's `.claude/settings.json`. After installation, every prompt you type in Claude Code within that project will first pass through GOG — relevant files are identified via semantic seeding + graph traversal and injected as context before Claude starts working.
+
+Running `hook install` again is safe — it detects an existing installation and skips.
+
+#### 3. Test queries
+
+See what files GOG isolates for a given query without running Claude Code:
+
+```bash
+gog hook test --project-dir /path/to/your/ts-project How does the logout flow work
+```
+
+Example output:
+
+```
+Query: How does the logout flow work
+4/13 files isolated:
+
+  src/services/notification_service.ts
+  src/stores/authStore.ts
+  src/utils/logger.ts
+  src/views/LoginPage.vue
+```
+
+#### 4. Simulate the hook manually
+
+The hook reads JSON from stdin (same format Claude Code sends) and returns context as JSON on stdout:
+
+```bash
+echo '{"prompt": "How does the shopping cart work?"}' \
+  | gog hook run --project-dir /path/to/your/ts-project
+```
+
+### Install via pip (alternative)
+
 ```bash
 pip install -r requirements.txt
 ```
@@ -145,6 +214,8 @@ pip install -r requirements.txt
 Key dependencies: `networkx`, `tree-sitter`, `tree-sitter-typescript`, `chromadb`, `sentence-transformers`, `tiktoken`, `rich`.
 
 > **NumPy note:** `sentence-transformers` requires `numpy<2`. If your environment has NumPy 2.x, run `pip install "numpy<2"` first or use a virtual environment.
+
+### Running the benchmarks
 
 **Cloud CLI benchmark:**
 ```bash
